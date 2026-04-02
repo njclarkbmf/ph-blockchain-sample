@@ -1,0 +1,17 @@
+# =============================================================================
+# Grafana Dashboard Provisioning Configuration
+# =============================================================================
+
+apiVersion: 1
+
+providers:
+  - name: 'Besu Blockchain Dashboards'
+    orgId: 1
+    folder: 'Blockchain'
+    folderUid: 'blockchain'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards

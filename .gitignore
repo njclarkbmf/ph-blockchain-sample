@@ -1,0 +1,109 @@
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Build outputs
+dist/
+build/
+artifacts/
+cache/
+coverage/
+*.log
+
+# Hardhat (specific paths)
+contracts/artifacts/
+contracts/cache/
+hardhat.config.js
+hardhat.config.d.ts
+hardhat.config.d.ts.map
+
+# Qwen Code
+.qwen/
+
+# TypeChain
+src/types/
+typechain/
+
+# Testing
+test-results/
+*.test.json
+
+# Network setup (generated)
+network-setup/
+generated/
+enodes.txt
+
+# Deployed addresses (contains sensitive data)
+deployed-addresses.json
+deployed-addresses.json.enc
+verification-results.json
+
+# Docker volumes (local development)
+docker-data/
+*.db
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Backup files
+*.bak
+*.backup
+
+# Keys (NEVER commit!)
+*.key
+*.pem
+*.p12
+keystore/
+keys/
+
+# TLS certificates
+*.crt
+*.csr
+*.srl
+
+# Monitoring data
+prometheus_data/
+grafana_data/
+
+# Ansible (if used)
+*.retry
+ansible/.vault_pass
+
+# Terraform (if used)
+*.tfstate
+*.tfstate.backup
+.terraform/
+
+# Sensitive configuration
+config/besu/keys/
+config/besu/tls/
+config/besu/auth/
+
+# Tessera (privacy)
+tessera/
+orion/
+
+# Wallet files
+wallet/
+*.wallet

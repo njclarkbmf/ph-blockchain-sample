@@ -1,0 +1,184 @@
+# =============================================================================
+# Validator Node 1 Configuration - DICT Primary Validator
+# =============================================================================
+# 
+# This is the primary validator node operated by DICT.
+# In production, this should run on government infrastructure with HSM.
+#
+# COMPLIANCE:
+# - RA 10173: Node logs must be retained for audit
+# - DICT Guidelines: Validator nodes must have 99.9% uptime SLA
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Node Identity
+# -----------------------------------------------------------------------------
+node-private-key-file="/etc/besu/keys/validator1.key"
+
+# -----------------------------------------------------------------------------
+# Network Configuration
+# -----------------------------------------------------------------------------
+# P2P network settings
+p2p-enabled=true
+p2p-port=30303
+p2p-host="0.0.0.0"
+
+# Bootnode configuration
+bootnodes=[
+  "enode://bootnode_public_key@bootnode:30303"
+]
+
+# Maximum peers
+max-peers=25
+
+# -----------------------------------------------------------------------------
+# RPC Configuration
+# -----------------------------------------------------------------------------
+# JSON-RPC HTTP settings
+rpc-http-enabled=true
+rpc-http-host="0.0.0.0"
+rpc-http-port=8545
+rpc-http-api="ETH,NET,WEB3,ADMIN,MINER,TX_POOL,DEBUG,TRACE"
+rpc-http-cors-origins=["*"]
+
+# JSON-RPC WebSocket settings (for subscriptions)
+rpc-ws-enabled=true
+rpc-ws-host="0.0.0.0"
+rpc-ws-port=8546
+rpc-ws-api="ETH,NET,WEB3,ADMIN,MINER,TX_POOL"
+
+# Engine API (for consensus layer - reserved for future PoS migration)
+engine-rpc-enabled=false
+engine-host="127.0.0.1"
+engine-port=8551
+
+# -----------------------------------------------------------------------------
+# GraphQL Configuration (Optional)
+# -----------------------------------------------------------------------------
+graphql-http-enabled=false
+graphql-http-host="0.0.0.0"
+graphql-http-port=8547
+
+# -----------------------------------------------------------------------------
+# Metrics Configuration (Prometheus)
+# -----------------------------------------------------------------------------
+metrics-enabled=true
+metrics-host="0.0.0.0"
+metrics-port=9545
+metrics-category="JVM,BESU,ETHEREUM,NETWORK,TRANSACTION"
+metrics-push-enabled=false
+
+# -----------------------------------------------------------------------------
+# Logging Configuration
+# -----------------------------------------------------------------------------
+logging="INFO"
+# For debugging: logging="DEBUG"
+# For production: logging="WARN"
+
+# -----------------------------------------------------------------------------
+# Data Directory
+# -----------------------------------------------------------------------------
+data-path="/var/lib/besu/data"
+
+# -----------------------------------------------------------------------------
+# Genesis Configuration
+# -----------------------------------------------------------------------------
+genesis-file="/etc/besu/genesis_qbft.json"
+
+# -----------------------------------------------------------------------------
+# Network Configuration
+# -----------------------------------------------------------------------------
+network-id=1981
+
+# -----------------------------------------------------------------------------
+# Consensus Configuration (QBFT)
+# -----------------------------------------------------------------------------
+# QBFT is configured in genesis file, but additional settings here
+min-gas-price=1000000000
+# Fixed gas price for permissioned network
+
+# -----------------------------------------------------------------------------
+# Transaction Pool Configuration
+# -----------------------------------------------------------------------------
+tx-pool-max-size=4096
+tx-pool-retention-hours=24
+tx-pool-save-enabled=false
+
+# -----------------------------------------------------------------------------
+# Privacy Configuration (Optional - for Enterprise Besu migration)
+# -----------------------------------------------------------------------------
+# privacy-enabled=false
+# privacy-url="http://tessera:9101"
+# privacy-public-key-file="/etc/besu/privacy/public_key"
+
+# -----------------------------------------------------------------------------
+# Security Configuration
+# -----------------------------------------------------------------------------
+# TLS for P2P (optional, recommended for production)
+p2p-tls-enabled=false
+# p2p-tls-keystore-file="/etc/besu/tls/keystore.p12"
+# p2p-tls-keystore-password-file="/etc/besu/tls/password.txt"
+
+# TLS for RPC (optional, recommended for production)
+rpc-http-tls-enabled=false
+# rpc-http-tls-keystore-file="/etc/besu/tls/rpc-keystore.p12"
+# rpc-http-tls-keystore-password-file="/etc/besu/tls/rpc-password.txt"
+# rpc-http-tls-client-auth-enabled=true
+# rpc-http-tls-known-clients-file="/etc/besu/tls/known-clients.toml"
+
+# -----------------------------------------------------------------------------
+# Permissioning Configuration
+# -----------------------------------------------------------------------------
+permissions-nodes-config-file-enabled=true
+permissions-nodes-config-file="/etc/besu/permissions_config.toml"
+permissions-accounts-config-file-enabled=true
+permissions-accounts-config-file="/etc/besu/permissions_config.toml"
+
+# -----------------------------------------------------------------------------
+# API Authentication (Optional)
+# -----------------------------------------------------------------------------
+rpc-http-authentication-enabled=false
+
+rpc-ws-authentication-enabled=false
+
+# -----------------------------------------------------------------------------
+# Host Allowlist (Security)
+# -----------------------------------------------------------------------------
+host-allowlist=["*"]
+# For production, restrict to specific IPs:
+# host-allowlist=["localhost", "127.0.0.1", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
+
+# -----------------------------------------------------------------------------
+# Revert Reason Configuration
+# -----------------------------------------------------------------------------
+revert-reason-enabled=true
+
+# -----------------------------------------------------------------------------
+# Auto Log Bloom Cache (Optional)
+# -----------------------------------------------------------------------------
+auto-log-bloom-caching-enabled=true
+
+# -----------------------------------------------------------------------------
+# Snap Sync Configuration (for new nodes joining)
+# -----------------------------------------------------------------------------
+sync-mode="FULL"
+# Use "FAST" or "SNAP" for faster initial sync
+
+# -----------------------------------------------------------------------------
+# Pruning Configuration (Optional)
+# -----------------------------------------------------------------------------
+pruning-enabled=false
+# Enable for disk space optimization in long-running nodes
+# pruning-blocks-retained=1024
+# pruning-block-confirmations=128
+
+# -----------------------------------------------------------------------------
+# Checkpoint Configuration (Optional)
+# -----------------------------------------------------------------------------
+# checkpoint-post-merge="0x0000000000000000000000000000000000000000000000000000000000000000"
+
+# -----------------------------------------------------------------------------
+# X Plugin Configuration (Optional)
+# -----------------------------------------------------------------------------
+# X plugins for custom functionality
+# plugins-x-enabled=false

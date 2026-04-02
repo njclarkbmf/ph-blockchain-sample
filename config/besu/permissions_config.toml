@@ -1,0 +1,127 @@
+# =============================================================================
+# Philippine Government Federated Blockchain - Permission Configuration
+# =============================================================================
+#
+# NOTE: This file was renamed from permission-config.toml to
+# permissions_config.toml to match node config references.
+#
+# Node enode URLs must be updated after running setup_qbft.sh
+# Account addresses should match your genesis alloc or agency registry
+# =============================================================================
+
+# =============================================================================
+# NODE PERMISSIONING
+# Controls which nodes can join the network (P2P layer)
+# =============================================================================
+
+[Node]
+# Enable node permissioning
+enabled=true
+
+# Allowlist of authorized node enode URLs
+# Format: enode://<public_key>@<ip>:<port>
+# 
+# IMPORTANT: Replace these with actual enode IDs from your network setup
+# Run `besu operator generate-blockchain-config` to generate node keys
+# Then extract enode URLs using `besu operator generate-log-bloom-cache`
+allowlist=[
+  # Validator Node 1 (DICT Primary)
+  "enode://validator1_public_key@validator1:30303",
+  # Validator Node 2 (BIR)
+  "enode://validator2_public_key@validator2:30303",
+  # Validator Node 3 (NBI)
+  "enode://validator3_public_key@validator3:30303",
+  # Observer Node 1 (DOH)
+  "enode://observer1_public_key@observer1:30303",
+  # Bootnode
+  "enode://bootnode_public_key@bootnode:30303"
+]
+
+# Denylist of banned nodes (optional)
+# Use for emergency node revocation
+denylist=[
+  # Example: "enode://compromised_node@bad.actor:30303"
+]
+
+# =============================================================================
+# ACCOUNT PERMISSIONING
+# Controls which accounts can submit transactions
+# =============================================================================
+
+[Account]
+# Enable account permissioning
+enabled=true
+
+# Allowlist of authorized account addresses
+# These are the Ethereum addresses that can send transactions
+allowlist=[
+  # DICT Admin Account
+  "0xfe3b557e8fb62b89f4916b721be55ceb828dbd73",
+  # BIR Agency Account
+  "0x627306090abab3a6e1400e9345bc60c78a8bef57",
+  # NBI Agency Account
+  "0xf17f52151ebef6c7334fad080c5704d77216b732",
+  # DOH Agency Account
+  "0xc5fdf4076b8f3a5357c5e395ab970b5b54f98fef",
+  # COA Auditor Account
+  "0x821aea9a577a9b44299b9c15c88cf4f0697706ab",
+  # Ombudsman Auditor Account
+  "0x71b5759d73272bd42abb0a050207f92f09e3d2b8",
+  # Network Operator Account
+  "0x0000000000000000000000000000000000000000"
+]
+
+# Denylist of banned accounts (optional)
+# Use for emergency account revocation (e.g., compromised keys)
+denylist=[
+  # Example: "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+]
+
+# =============================================================================
+# PERMISSIONING CONTRACT (Optional - Advanced)
+# For dynamic permissioning via smart contract
+# =============================================================================
+
+[Permissions.Contract]
+# Enable contract-based permissioning
+# This allows runtime permission updates via smart contract calls
+enabled=false
+
+# Address of the permissioning contract
+# Deploy the BesuPermissioning contract for dynamic management
+contractAddress="0x0000000000000000000000000000000000000000"
+
+# =============================================================================
+# DNS PERMISSIONING (Optional)
+# For large-scale deployments with DNS-based node discovery
+# =============================================================================
+
+[Permissions.Dns]
+enabled=false
+dnsConfigurationFile=""
+
+# =============================================================================
+# SECURITY RECOMMENDATIONS
+# =============================================================================
+#
+# 1. KEY MANAGEMENT:
+#    - Store node keys in HSM or secure vault (AWS KMS, Azure Key Vault)
+#    - Rotate account keys periodically per DICT security guidelines
+#    - Never commit private keys to version control
+#
+# 2. NETWORK SECURITY:
+#    - Deploy nodes in private VPC/subnet
+#    - Use TLS for RPC connections (enable in Besu config)
+#    - Implement firewall rules to restrict P2P traffic
+#
+# 3. MONITORING:
+#    - Enable Besu metrics (Prometheus endpoint)
+#    - Set up alerts for unauthorized access attempts
+#    - Regular audit of permissioning lists
+#
+# 4. INCIDENT RESPONSE:
+#    - Maintain procedure for emergency node/account revocation
+#    - Keep offline backup of genesis and permission configs
+#    - Document process for adding new agency nodes
+#
+# =============================================================================

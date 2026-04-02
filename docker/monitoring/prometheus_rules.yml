@@ -1,0 +1,199 @@
+# =============================================================================
+# Prometheus Alert Rules - Philippine Government Federated Blockchain
+# =============================================================================
+# 
+# Alert rules for network monitoring and compliance.
+# Configure alertmanager for notifications (email, Slack, etc.)
+# =============================================================================
+
+groups:
+  # ---------------------------------------------------------------------------
+  # Node Health Alerts
+  # ---------------------------------------------------------------------------
+  - name: node_health
+    rules:
+      # Node is down
+      - alert: BesuNodeDown
+        expr: up{job=~"besu-.*"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          category: infrastructure
+        annotations:
+          summary: "Besu node {{ $labels.instance }} is down"
+          description: "Node {{ $labels.instance }} ({{ $labels.node_type }}) has been unreachable for more than 2 minutes."
+          runbook_url: "https://github.com/ph-gov/blockchain/docs/runbooks/node-down.md"
+
+      # Node syncing
+      - alert: BesuNodeSyncing
+        expr: besu_blockchain_sync_current_height < besu_blockchain_sync_target_height - 100
+        for: 10m
+        labels:
+          severity: warning
+          category: synchronization
+        annotations:
+          summary: "Besu node {{ $labels.instance }} is syncing"
+          description: "Node is {{ $value }} blocks behind target height."
+
+  # ---------------------------------------------------------------------------
+  # Consensus Alerts
+  # ---------------------------------------------------------------------------
+  - name: consensus_health
+    rules:
+      # Validator not proposing blocks
+      - alert: ValidatorNotProposing
+        expr: rate(besu_blockchain_chain_height{node_type="validator"}[5m]) == 0
+        for: 5m
+        labels:
+          severity: warning
+          category: consensus
+        annotations:
+          summary: "Validator {{ $labels.instance }} not proposing blocks"
+          description: "Validator node has not contributed to block production in 5 minutes."
+
+      # High block time variance
+      - alert: HighBlockTimeVariance
+        expr: rate(besu_blockchain_block_time_seconds_sum[5m]) / rate(besu_blockchain_block_time_seconds_count[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          category: consensus
+        annotations:
+          summary: "High block time variance detected"
+          description: "Average block time is {{ $value }} seconds, expected ~5 seconds."
+
+  # ---------------------------------------------------------------------------
+  # Transaction Pool Alerts
+  # ---------------------------------------------------------------------------
+  - name: transaction_pool
+    rules:
+      # Transaction pool near capacity
+      - alert: TransactionPoolHigh
+        expr: besu_transaction_pool_pending_transactions > 3000
+        for: 5m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "Transaction pool near capacity on {{ $labels.instance }}"
+          description: "{{ $value }} pending transactions in pool."
+
+      # High transaction rejection rate
+      - alert: HighTransactionRejectionRate
+        expr: rate(besu_transaction_pool_transactions_removed_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "High transaction rejection rate on {{ $labels.instance }}"
+          description: "{{ $value }} transactions rejected per second."
+
+  # ---------------------------------------------------------------------------
+  # Peer Network Alerts
+  # ---------------------------------------------------------------------------
+  - name: peer_network
+    rules:
+      # Low peer count
+      - alert: LowPeerCount
+        expr: besu_network_peers_connected < 3
+        for: 5m
+        labels:
+          severity: warning
+          category: network
+        annotations:
+          summary: "Low peer count on {{ $labels.instance }}"
+          description: "Node has only {{ $value }} connected peers."
+
+      # No peers connected
+      - alert: NoPeersConnected
+        expr: besu_network_peers_connected == 0
+        for: 2m
+        labels:
+          severity: critical
+          category: network
+        annotations:
+          summary: "No peers connected to {{ $labels.instance }}"
+          description: "Node is isolated from the network."
+
+  # ---------------------------------------------------------------------------
+  # Resource Alerts
+  # ---------------------------------------------------------------------------
+  - name: resources
+    rules:
+      # High memory usage (JVM)
+      - alert: HighMemoryUsage
+        expr: jvm_memory_used_bytes / jvm_memory_max_bytes > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          category: resources
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "JVM memory usage is {{ $value | humanizePercentage }}."
+
+      # High disk usage
+      - alert: HighDiskUsage
+        expr: (node_filesystem_size_bytes - node_filesystem_avail_bytes) / node_filesystem_size_bytes > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          category: resources
+        annotations:
+          summary: "High disk usage on {{ $labels.instance }}"
+          description: "Disk usage is {{ $value | humanizePercentage }}."
+
+  # ---------------------------------------------------------------------------
+  # RPC Health Alerts
+  # ---------------------------------------------------------------------------
+  - name: rpc_health
+    rules:
+      # High RPC latency
+      - alert: HighRPCLatency
+        expr: histogram_quantile(0.95, rate(besu_rpc_request_duration_seconds_bucket[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "High RPC latency on {{ $labels.instance }}"
+          description: "95th percentile RPC latency is {{ $value }} seconds."
+
+      # High RPC error rate
+      - alert: HighRPCErrorRate
+        expr: rate(besu_rpc_requests_total{status="error"}[5m]) / rate(besu_rpc_requests_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "High RPC error rate on {{ $labels.instance }}"
+          description: "{{ $value | humanizePercentage }} of RPC requests are failing."
+
+  # ---------------------------------------------------------------------------
+  # Compliance Alerts
+  # ---------------------------------------------------------------------------
+  - name: compliance
+    rules:
+      # Chain halted (no new blocks)
+      - alert: ChainHalted
+        expr: increase(besu_blockchain_chain_height[5m]) == 0
+        for: 10m
+        labels:
+          severity: critical
+          category: compliance
+        annotations:
+          summary: "Blockchain has halted - no new blocks in 10 minutes"
+          description: "Chain height has not increased. This may indicate a consensus issue."
+          compliance_note: "Per DICT guidelines, chain availability must be maintained for audit trail continuity."
+
+      # Validator quorum at risk
+      - alert: ValidatorQuorumAtRisk
+        expr: count(besu_blockchain_chain_height{node_type="validator"} == on() group_left() (max(besu_blockchain_chain_height) - 1)) < 2
+        for: 2m
+        labels:
+          severity: critical
+          category: consensus
+        annotations:
+          summary: "Validator quorum at risk"
+          description: "Less than 2 validators are in sync. QBFT consensus requires 2f+1 validators."

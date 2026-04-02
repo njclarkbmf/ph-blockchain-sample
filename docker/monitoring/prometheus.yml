@@ -1,0 +1,104 @@
+# =============================================================================
+# Prometheus Configuration - Philippine Government Federated Blockchain
+# =============================================================================
+# 
+# Scrapes metrics from Besu nodes and monitoring services.
+# Used for network health monitoring and compliance reporting.
+# =============================================================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'ph-blockchain-monitor'
+    environment: 'poc'
+
+# Alertmanager configuration (optional - for production)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets:
+#           - alertmanager:9093
+
+# Load rules for alerts
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+# Scrape configurations
+scrape_configs:
+  # ---------------------------------------------------------------------------
+  # Besu Validator Nodes
+  # ---------------------------------------------------------------------------
+  - job_name: 'besu-validators'
+    static_configs:
+      - targets:
+          - 'validator1:9545'
+          - 'validator2:9545'
+          - 'validator3:9545'
+        labels:
+          node_type: 'validator'
+          network: 'ph-blockchain'
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+    scrape_timeout: 10s
+
+  # ---------------------------------------------------------------------------
+  # Besu Observer Nodes
+  # ---------------------------------------------------------------------------
+  - job_name: 'besu-observers'
+    static_configs:
+      - targets:
+          - 'observer1:9545'
+        labels:
+          node_type: 'observer'
+          network: 'ph-blockchain'
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  # ---------------------------------------------------------------------------
+  # Bootnode
+  # ---------------------------------------------------------------------------
+  - job_name: 'besu-bootnode'
+    static_configs:
+      - targets:
+          - 'bootnode:9545'
+        labels:
+          node_type: 'bootnode'
+          network: 'ph-blockchain'
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  # ---------------------------------------------------------------------------
+  # Prometheus Self-Monitoring
+  # ---------------------------------------------------------------------------
+  - job_name: 'prometheus'
+    static_configs:
+      - targets:
+          - 'localhost:9090'
+        labels:
+          service: 'prometheus'
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+
+  # ---------------------------------------------------------------------------
+  # Grafana Metrics
+  # ---------------------------------------------------------------------------
+  - job_name: 'grafana'
+    static_configs:
+      - targets:
+          - 'grafana:3000'
+        labels:
+          service: 'grafana'
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+# Remote write configuration (optional - for long-term storage)
+# remote_write:
+#   - url: "http://cortex:9009/api/v1/push"
+#     remote_timeout: 30s
+#     write_relabel_configs:
+#       - source_labels: [__name__]
+#         regex: 'besu_.*'
+#         action: keep

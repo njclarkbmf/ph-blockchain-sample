@@ -1,0 +1,98 @@
+# =============================================================================
+# Observer Node 1 Configuration - DOH Observer
+# =============================================================================
+# 
+# Department of Health (DOH) observer node.
+# Does NOT participate in consensus but maintains full chain state.
+# Used for read operations and redundancy.
+# =============================================================================
+
+node-private-key-file="/etc/besu/keys/observer1.key"
+
+# Network Configuration
+p2p-enabled=true
+p2p-port=30303
+p2p-host="0.0.0.0"
+
+bootnodes=[
+  "enode://bootnode_public_key@bootnode:30303"
+]
+
+max-peers=25
+
+# RPC Configuration
+rpc-http-enabled=true
+rpc-http-host="0.0.0.0"
+rpc-http-port=8545
+rpc-http-api="ETH,NET,WEB3,TX_POOL,DEBUG"
+# Note: Observer nodes don't need ADMIN or MINER APIs
+rpc-http-cors-origins=["*"]
+
+rpc-ws-enabled=true
+rpc-ws-host="0.0.0.0"
+rpc-ws-port=8546
+rpc-ws-api="ETH,NET,WEB3,TX_POOL"
+
+engine-rpc-enabled=false
+
+# GraphQL (useful for observers serving queries)
+graphql-http-enabled=true
+graphql-http-host="0.0.0.0"
+graphql-http-port=8547
+
+# Metrics
+metrics-enabled=true
+metrics-host="0.0.0.0"
+metrics-port=9545
+metrics-category="JVM,BESU,ETHEREUM,NETWORK,TRANSACTION"
+
+# Logging
+logging="INFO"
+
+# Data
+data-path="/var/lib/besu/data"
+
+# Genesis
+genesis-file="/etc/besu/genesis_qbft.json"
+
+# Network
+network-id=1981
+
+# Consensus - Observer doesn't mine
+min-gas-price=1000000000
+
+# Transaction Pool
+tx-pool-max-size=4096
+tx-pool-retention-hours=24
+
+# Security
+p2p-tls-enabled=false
+rpc-http-tls-enabled=false
+
+# Permissioning
+permissions-nodes-config-file-enabled=true
+permissions-nodes-config-file="/etc/besu/permissions_config.toml"
+permissions-accounts-config-file-enabled=true
+permissions-accounts-config-file="/etc/besu/permissions_config.toml"
+
+# API Authentication
+rpc-http-authentication-enabled=false
+
+rpc-ws-authentication-enabled=false
+
+# Host Allowlist
+host-allowlist=["*"]
+
+# Sync - Observers can use FAST sync
+sync-mode="FULL"
+
+# Revert Reason
+revert-reason-enabled=true
+
+# Auto Log Bloom Cache
+auto-log-bloom-caching-enabled=true
+
+# Pruning - Enable for observers to save disk space
+pruning-enabled=true
+pruning-blocks-retained=1024
+pruning-block-confirmations=128

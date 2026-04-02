@@ -1,0 +1,70 @@
+{
+  "comment": "Philippine Government Federated Blockchain - QBFT Genesis Configuration",
+  "description": "Permissioned blockchain genesis for inter-agency document registry",
+  "config": {
+    "chainId": 1981,
+    "homesteadBlock": 0,
+    "eip150Block": 0,
+    "eip155Block": 0,
+    "eip158Block": 0,
+    "byzantiumBlock": 0,
+    "constantinopleBlock": 0,
+    "petersburgBlock": 0,
+    "istanbulBlock": 0,
+    "muirGlacierBlock": 0,
+    "berlinBlock": 0,
+    "londonBlock": 0,
+    "arrowGlacierBlock": 0,
+    "grayGlacierBlock": 0,
+    "mergeNetsplitBlock": 0,
+    "shanghaiTime": 0,
+    "cancunTime": 0,
+    "qbft": {
+      "blockperiodseconds": 5,
+      "epochlength": 30000,
+      "requesttimeoutseconds": 10,
+      "blockreward": "0"
+    },
+    "contractSizeLimit": 2147483647,
+    "evmStackSize": 1024,
+    "fixedBaseFeePerGas": 1000000000,
+    "zeroBaseFee": false,
+    "permissioned": true
+  },
+  "nonce": "0x0",
+  "timestamp": "0x0",
+  "extraData": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+  "gasLimit": "0x29E9000",
+  "difficulty": "0x1",
+  "mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "coinbase": "0x0000000000000000000000000000000000000000",
+  "alloc": {
+    "comment": "Initial account allocations for government agencies",
+    "description": "These accounts are pre-funded for contract deployment and operations",
+    "0xfe3b557e8fb62b89f4916b721be55ceb828dbd73": {
+      "comment": "DICT Admin Account - Default deployer for POC",
+      "balance": "0x10000000000000000000000"
+    },
+    "0x627306090abab3a6e1400e9345bc60c78a8bef57": {
+      "comment": "BIR Agency Account",
+      "balance": "0x10000000000000000000000"
+    },
+    "0xf17f52151ebef6c7334fad080c5704d77216b732": {
+      "comment": "NBI Agency Account",
+      "balance": "0x10000000000000000000000"
+    },
+    "0xc5fdf4076b8f3a5357c5e395ab970b5b54f98fef": {
+      "comment": "DOH Agency Account",
+      "balance": "0x10000000000000000000000"
+    },
+    "0x821aea9a577a9b44299b9c15c88cf4f0697706ab": {
+      "comment": "COA Auditor Account",
+      "balance": "0x10000000000000000000000"
+    },
+    "0x71b5759d73272bd42abb0a050207f92f09e3d2b8": {
+      "comment": "Ombudsman Auditor Account",
+      "balance": "0x10000000000000000000000"
+    }
+  },
+  "baseFeePerGas": "0x3B9ACA00"
+}

@@ -1,0 +1,86 @@
+# =============================================================================
+# Validator Node 2 Configuration - BIR Validator
+# =============================================================================
+# 
+# Bureau of Internal Revenue (BIR) validator node.
+# Participates in QBFT consensus for document registry operations.
+# =============================================================================
+
+node-private-key-file="/etc/besu/keys/validator2.key"
+
+# Network Configuration
+p2p-enabled=true
+p2p-port=30303
+p2p-host="0.0.0.0"
+
+bootnodes=[
+  "enode://bootnode_public_key@bootnode:30303"
+]
+
+max-peers=25
+
+# RPC Configuration
+rpc-http-enabled=true
+rpc-http-host="0.0.0.0"
+rpc-http-port=8545
+rpc-http-api="ETH,NET,WEB3,ADMIN,MINER,TX_POOL,DEBUG"
+rpc-http-cors-origins=["*"]
+
+rpc-ws-enabled=true
+rpc-ws-host="0.0.0.0"
+rpc-ws-port=8546
+rpc-ws-api="ETH,NET,WEB3,ADMIN,MINER,TX_POOL"
+
+engine-rpc-enabled=false
+
+# Metrics
+metrics-enabled=true
+metrics-host="0.0.0.0"
+metrics-port=9545
+metrics-category="JVM,BESU,ETHEREUM,NETWORK,TRANSACTION"
+
+# Logging
+logging="INFO"
+
+# Data
+data-path="/var/lib/besu/data"
+
+# Genesis
+genesis-file="/etc/besu/genesis_qbft.json"
+
+# Network
+network-id=1981
+
+# Consensus
+min-gas-price=1000000000
+
+# Transaction Pool
+tx-pool-max-size=4096
+tx-pool-retention-hours=24
+
+# Security
+p2p-tls-enabled=false
+rpc-http-tls-enabled=false
+
+# Permissioning
+permissions-nodes-config-file-enabled=true
+permissions-nodes-config-file="/etc/besu/permissions_config.toml"
+permissions-accounts-config-file-enabled=true
+permissions-accounts-config-file="/etc/besu/permissions_config.toml"
+
+# API Authentication
+rpc-http-authentication-enabled=false
+
+rpc-ws-authentication-enabled=false
+
+# Host Allowlist
+host-allowlist=["*"]
+
+# Sync
+sync-mode="FULL"
+
+# Revert Reason
+revert-reason-enabled=true
+
+# Auto Log Bloom Cache
+auto-log-bloom-caching-enabled=true

@@ -1,0 +1,349 @@
+# =============================================================================
+# Philippine Government Federated Blockchain - Docker Compose
+# =============================================================================
+#
+# DESCRIPTION:
+# Complete Docker Compose setup for a permissioned QBFT Besu network
+# with 3 validators, 1 observer, 1 bootnode, and monitoring stack.
+#
+# PREREQUISITES:
+# 1. Run scripts/network/setup_qbft.sh to generate node keys
+# 2. Ensure config/besu/ directory has genesis, node configs, and keys
+#
+# PORTS EXPOSED:
+# - 8545: JSON-RPC HTTP (primary RPC endpoint, validator1 only)
+# - 8546: JSON-RPC WebSocket (for subscriptions, validator1 only)
+# - 8547: GraphQL HTTP (optional query interface, validator1 only)
+# - 9545: Metrics (Prometheus endpoint, validator1 only)
+# - 30303: P2P (peer-to-peer communication, validator1 only)
+# - 8080: Grafana Dashboard (monitoring)
+# - 9090: Prometheus (metrics collection)
+#
+# USAGE:
+#   docker compose up -d                    # Start all services
+#   docker compose down                     # Stop all services
+#   docker compose logs -f validator1       # View validator logs
+#   docker compose ps                       # Check service status
+# =============================================================================
+
+version: "3.8"
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  blockchain:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+  monitoring:
+    driver: bridge
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  validator1_data:
+    name: ph_blockchain_validator1_data
+  validator2_data:
+    name: ph_blockchain_validator2_data
+  validator3_data:
+    name: ph_blockchain_validator3_data
+  observer1_data:
+    name: ph_blockchain_observer1_data
+  bootnode_data:
+    name: ph_blockchain_bootnode_data
+
+  prometheus_data:
+    name: ph_blockchain_prometheus_data
+  grafana_data:
+    name: ph_blockchain_grafana_data
+
+# =============================================================================
+# Logging template (applied to all services)
+# =============================================================================
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+# =============================================================================
+# Services
+# =============================================================================
+services:
+  # ---------------------------------------------------------------------------
+  # Bootnode - Network Discovery
+  # ---------------------------------------------------------------------------
+  bootnode:
+    image: hyperledger/besu:24.6.0
+    container_name: ph-bootnode
+    hostname: bootnode
+    networks:
+      blockchain:
+        ipv4_address: 172.28.0.2
+    volumes:
+      - bootnode_data:/var/lib/besu/data
+      # Bind-mount host config directory (FIX: was named volume that started empty)
+      - ../config/besu:/etc/besu:ro
+    environment:
+      - BESU_HOME=/var/lib/besu
+      - LOGGING=INFO
+    command: >
+      --config-file=/etc/besu/nodes/bootnode.toml
+      --data-path=/var/lib/besu/data
+      --genesis-file=/etc/besu/genesis_qbft.json
+      --logging=INFO
+    restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      # FIX: Use curl-based check instead of wget --spider on metrics endpoint
+      test: ["CMD-SHELL", "curl -sf http://localhost:9545/metrics > /dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ---------------------------------------------------------------------------
+  # Validator 1 - DICT Primary Validator
+  # ---------------------------------------------------------------------------
+  validator1:
+    image: hyperledger/besu:24.6.0
+    container_name: ph-validator1
+    hostname: validator1
+    networks:
+      blockchain:
+        ipv4_address: 172.28.0.10
+    ports:
+      - "8545:8545"
+      - "8546:8546"
+      - "8547:8547"
+      - "9545:9545"
+      - "30303:30303/tcp"
+      - "30303:30303/udp"
+    volumes:
+      - validator1_data:/var/lib/besu/data
+      - ../config/besu:/etc/besu:ro
+    environment:
+      - BESU_HOME=/var/lib/besu
+      - LOGGING=INFO
+    command: >
+      --config-file=/etc/besu/nodes/validator1.toml
+      --data-path=/var/lib/besu/data
+      --genesis-file=/etc/besu/genesis_qbft.json
+      --host-allowlist="*"
+      --logging=INFO
+    depends_on:
+      bootnode:
+        condition: service_healthy
+    restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      # FIX: Use eth_blockNumber RPC call instead of wget HEAD
+      test: ["CMD-SHELL", "curl -sf -X POST -H 'Content-Type: application/json' --data '{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}' http://localhost:8545 | grep -q 'result' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+
+  # ---------------------------------------------------------------------------
+  # Validator 2 - BIR Validator
+  # NOTE: No host port mappings — internal-only node. All external traffic
+  # should route through validator1. To expose ports, add a ports: block
+  # with unique host ports (e.g., "8555:8545") to avoid conflicts.
+  # ---------------------------------------------------------------------------
+  validator2:
+    image: hyperledger/besu:24.6.0
+    container_name: ph-validator2
+    hostname: validator2
+    networks:
+      blockchain:
+        ipv4_address: 172.28.0.11
+    volumes:
+      - validator2_data:/var/lib/besu/data
+      - ../config/besu:/etc/besu:ro
+    environment:
+      - BESU_HOME=/var/lib/besu
+      - LOGGING=INFO
+    command: >
+      --config-file=/etc/besu/nodes/validator2.toml
+      --data-path=/var/lib/besu/data
+      --genesis-file=/etc/besu/genesis_qbft.json
+      --host-allowlist="*"
+      --logging=INFO
+    depends_on:
+      bootnode:
+        condition: service_healthy
+    restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf -X POST -H 'Content-Type: application/json' --data '{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}' http://localhost:8545 | grep -q 'result' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+    # NOTE: deploy.resources is Docker Swarm-only and silently ignored by
+    # docker compose (non-Swarm). Use mem_limit/cpus for Compose V2 limits.
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          cpus: '1.0'
+          memory: 2G
+
+  # ---------------------------------------------------------------------------
+  # Validator 3 - NBI Validator
+  # NOTE: No host port mappings — internal-only node. See validator2 comment.
+  # ---------------------------------------------------------------------------
+  validator3:
+    image: hyperledger/besu:24.6.0
+    container_name: ph-validator3
+    hostname: validator3
+    networks:
+      blockchain:
+        ipv4_address: 172.28.0.12
+    volumes:
+      - validator3_data:/var/lib/besu/data
+      - ../config/besu:/etc/besu:ro
+    environment:
+      - BESU_HOME=/var/lib/besu
+      - LOGGING=INFO
+    command: >
+      --config-file=/etc/besu/nodes/validator3.toml
+      --data-path=/var/lib/besu/data
+      --genesis-file=/etc/besu/genesis_qbft.json
+      --host-allowlist="*"
+      --logging=INFO
+    depends_on:
+      bootnode:
+        condition: service_healthy
+    restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf -X POST -H 'Content-Type: application/json' --data '{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}' http://localhost:8545 | grep -q 'result' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+    # NOTE: deploy.resources is Docker Swarm-only. See validator2 comment.
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          cpus: '1.0'
+          memory: 2G
+
+  # ---------------------------------------------------------------------------
+  # Observer 1 - DOH Observer Node
+  # NOTE: No host port mappings — internal-only read replica. GraphQL is
+  # enabled in the node config but unreachable from the host.
+  # ---------------------------------------------------------------------------
+  observer1:
+    image: hyperledger/besu:24.6.0
+    container_name: ph-observer1
+    hostname: observer1
+    networks:
+      blockchain:
+        ipv4_address: 172.28.0.20
+    volumes:
+      - observer1_data:/var/lib/besu/data
+      - ../config/besu:/etc/besu:ro
+    environment:
+      - BESU_HOME=/var/lib/besu
+      - LOGGING=INFO
+    command: >
+      --config-file=/etc/besu/nodes/observer1.toml
+      --data-path=/var/lib/besu/data
+      --genesis-file=/etc/besu/genesis_qbft.json
+      --host-allowlist="*"
+      --logging=INFO
+    depends_on:
+      bootnode:
+        condition: service_healthy
+    restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf -X POST -H 'Content-Type: application/json' --data '{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}' http://localhost:8545 | grep -q 'result' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+    # NOTE: deploy.resources is Docker Swarm-only. See validator2 comment.
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+
+  # ---------------------------------------------------------------------------
+  # Prometheus - Metrics Collection
+  # ---------------------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    container_name: ph-prometheus
+    hostname: prometheus
+    networks:
+      # FIX: Connect to BOTH blockchain and monitoring networks
+      blockchain:
+      monitoring:
+    ports:
+      - "9090:9090"
+    volumes:
+      - prometheus_data:/prometheus
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus_rules.yml:/etc/prometheus/rules/prometheus_rules.yml:ro
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+    restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ---------------------------------------------------------------------------
+  # Grafana - Monitoring Dashboard
+  # ---------------------------------------------------------------------------
+  grafana:
+    image: grafana/grafana:10.4.2
+    container_name: ph-grafana
+    hostname: grafana
+    networks:
+      - monitoring
+    ports:
+      - "8080:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=http://localhost:8080
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
