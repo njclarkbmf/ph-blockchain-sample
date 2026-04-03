@@ -6,48 +6,8 @@ The Philippine Government Federated Blockchain is a permissioned blockchain netw
 
 ## System Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        Philippine Government Federated Blockchain            │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐                       │
-│  │  Validator 1 │  │  Validator 2 │  │  Validator 3 │                       │
-│  │   (DICT)     │  │   (BIR)      │  │   (NBI)      │                       │
-│  │   QBFT       │  │   QBFT       │  │   QBFT       │                       │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘                       │
-│         │                 │                 │                                │
-│         └─────────────────┼─────────────────┘                                │
-│                           │                                                  │
-│                    ┌──────▼───────┐                                          │
-│                    │   QBFT       │                                          │
-│                    │  Consensus   │                                          │
-│                    └──────┬───────┘                                          │
-│                           │                                                  │
-│         ┌─────────────────┼─────────────────┐                                │
-│         │                 │                 │                                │
-│  ┌──────▼───────┐  ┌──────▼───────┐  ┌──────▼───────┐                       │
-│  │   Observer   │  │  Bootnode    │  │   RPC        │                       │
-│  │   (DOH)      │  │  Discovery   │  │  Gateway     │                       │
-│  └──────────────┘  └──────────────┘  └──────────────┘                       │
-│                                                                              │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                           Smart Contract Layer                               │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐              │
-│  │  AccessManager  │  │ DocumentRegistry│  │    AuditLog     │              │
-│  │  - Role Mgmt    │  │  - Doc Hashes   │  │  - Audit Trail  │              │
-│  │  - Permissions  │  │  - Access Ctrl  │  │  - Compliance   │              │
-│  └─────────────────┘  └─────────────────┘  └─────────────────┘              │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                           Application Layer                                  │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐              │
-│  │  ChainAdapter   │  │  BesuAdapter    │  │ ProductionAdapter│             │
-│  │  (Interface)    │  │  (POC/Dev)      │  │  (Enterprise)   │              │
-│  └─────────────────┘  └─────────────────┘  └─────────────────┘              │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+![Three-tier permissioned blockchain showing DICT, BIR, and NBI as QBFT validator nodes converging on consensus, with DOH as a read-only observer, underpinned by AccessManager, DocumentRegistry, and AuditLog smart contracts, and surfaced to agency applications through the ChainAdapter abstraction layer](../img/system_architecture_ph_blockchain.svg)
+
 
 ## Components
 
@@ -113,108 +73,23 @@ Immutable audit trail for compliance.
 
 ### 3. Adapter Pattern
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Application Code                          │
-├─────────────────────────────────────────────────────────────┤
-│                     ChainAdapter                             │
-│                   (Abstract Interface)                       │
-├─────────────────────────────────────────────────────────────┤
-│            │                        │                        │
-│            ▼                        ▼                        │
-│    ┌───────────────┐        ┌───────────────┐               │
-│    │ BesuAdapter   │        │ProductionAdapter│              │
-│    │ (POC/Dev)     │        │ (Enterprise)   │               │
-│    │ - ethers.js   │        │ - Fabric EVM   │               │
-│    │ - QBFT        │        │ - HSM          │               │
-│    └───────────────┘        └───────────────┘               │
-└─────────────────────────────────────────────────────────────┘
-```
+![Adapter pattern isolating agency application code from blockchain implementation details via a ChainAdapter abstract interface, with BesuAdapter targeting Hyperledger Besu over ethers.js for POC environments and ProductionAdapter integrating HSM-backed signing for enterprise deployment](../img/adapter_pattern.svg)
 
 ## Data Flow
 
 ### Document Registration Flow
 
-```
-┌──────────┐     ┌──────────┐     ┌──────────┐     ┌──────────┐
-│  Agency  │────▶│  Adapter │────▶│Contract  │────▶│  Besu    │
-│  App     │     │          │     │Registry  │     │  Node    │
-└──────────┘     └──────────┘     └──────────┘     └──────────┘
-     │                │                │                │
-     │ 1. Hash doc    │                │                │
-     │    (SHA-256)   │                │                │
-     │                │                │                │
-     │ 2. registerDoc │                │                │
-     │                │ 3. TX sign     │                │
-     │                │    & send      │                │
-     │                │                │ 4. Validate    │
-     │                │                │    & execute   │
-     │                │                │                │
-     │                │                │ 5. Emit event  │
-     │                │                │                │
-     │                │ 6. Receipt     │                │
-     │                │    + logs      │                │
-     │                │                │                │
-     │ 7. Store TX    │                │                │
-     │    hash +      │                │                │
-     │    document ID │                │                │
-     ▼                ▼                ▼                ▼
-```
+![Seven-step document registration sequence where an agency application SHA-256 hashes a document locally, submits it through the adapter as a signed transaction, the DocumentRegistry smart contract validates and stores the hash on-chain, emits an event, and returns the transaction receipt and document ID to the originating agency](../img/document_registration_flow.svg)
 
 ### Inter-Agency Access Flow
 
-```
-┌──────────┐                              ┌──────────┐
-│  Agency A│                              │  Agency B│
-│  (Owner) │                              │(Requester)│
-└────┬─────┘                              └────┬─────┘
-     │                                         │
-     │ 1. Grant access via                    │
-     │    DocumentRegistry                    │
-     │                                         │
-     │ 2. Event emitted                        │
-     │    (AccessGranted)                     │
-     │                                         │
-     │                                         │ 3. Query
-     │                                         │    document
-     │                                         │    metadata
-     │                                         │
-     │                                         │ 4. Verify
-     │                                         │    access
-     │                                         │    on-chain
-     │                                         │
-     │                                         │ 5. Request
-     │                                         │    document
-     │                                         │    from Agency A
-     │                                         │    (off-chain)
-     ▼                                         ▼
-```
+![Five-step inter-agency access sequence where Agency A grants access via the DocumentRegistry smart contract triggering an AccessGranted event, after which Agency B queries document metadata on-chain, verifies access permissions, and retrieves the actual document directly from Agency A through a secured off-chain channel](../img/inter_agency_access_flow.svg)
 
 ## Security Architecture
 
 ### Key Management
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      Key Hierarchy                           │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  ┌─────────────────┐                                        │
-│  │   Root CA       │  (DICT - Offline, HSM)                │
-│  └────────┬────────┘                                        │
-│           │                                                  │
-│  ┌────────▼────────┐                                        │
-│  │  Intermediate   │  (Per-agency CA)                       │
-│  │      CA         │                                        │
-│  └────────┬────────┘                                        │
-│           │                                                  │
-│  ┌────────▼────────┐                                        │
-│  │   Node Keys     │  (Besu node identity)                  │
-│  │   Account Keys  │  (Transaction signing)                 │
-│  └─────────────────┘                                        │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
-```
+![Three-tier PKI hierarchy anchored by a DICT-controlled offline Root CA stored in HSM, delegating to per-agency Intermediate CAs, which in turn issue Besu node identity keys for peer authentication and account keys for transaction signing at the operational layer](../img/key_management_hierarchy.svg)
 
 ### Network Security
 

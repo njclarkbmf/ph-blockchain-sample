@@ -13,7 +13,12 @@ This repository provides a complete, modular, and Dockerized blockchain network 
 
 ## 🏗️ Architecture
 
-![Description](img/ph_blockchain_overview.png)
+A three-tier permissioned network (sample only, can be expanded further) with DICT, BIR, and NBI as QBFT validator nodes, DOH as a read-only observer, and governance enforced by three on-chain smart contracts (AccessManager, DocumentRegistry, AuditLog). Agency applications integrate through a ChainAdapter abstraction that decouples business logic from the underlying blockchain implementation.
+
+![This architecture depicts a permissioned, federated blockchain network designed for Philippine government inter-agency data integrity and auditability. It is organized into three functional layers: Validators, Smart Contracts, and Adapters.](img/ph_blockchain_overview.png)
+
+For detailed component descriptions, data flows, and security architecture see
+[docs/architecture.md](docs/architecture.md)
 
 ## ✨ Features
 
