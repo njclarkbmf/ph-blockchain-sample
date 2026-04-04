@@ -55,7 +55,7 @@
       "pluginVersion": "10.4.2",
       "targets": [
         {
-          "expr": "max(besu_blockchain_chain_height)",
+          "expr": "max(ethereum_blockchain_height)",
           "legendFormat": "Chain Height",
           "refId": "A"
         }
@@ -117,7 +117,7 @@
       "pluginVersion": "10.4.2",
       "targets": [
         {
-          "expr": "sum(besu_network_peers_connected)",
+          "expr": "sum(besu_peers_connected_total)",
           "legendFormat": "Connected Peers",
           "refId": "A"
         }
@@ -171,7 +171,7 @@
       "pluginVersion": "10.4.2",
       "targets": [
         {
-          "expr": "sum(besu_transaction_pool_pending_transactions)",
+          "expr": "sum(besu_transaction_pool_number_of_transactions)",
           "legendFormat": "Pending TXs",
           "refId": "A"
         }
@@ -199,7 +199,7 @@
               }
             ]
           },
-          "unit": "s"
+          "unit": "short"
         },
         "overrides": []
       },
@@ -225,12 +225,12 @@
       "pluginVersion": "10.4.2",
       "targets": [
         {
-          "expr": "rate(besu_blockchain_block_time_seconds_sum[1m]) / rate(besu_blockchain_block_time_seconds_count[1m])",
-          "legendFormat": "Avg Block Time",
+          "expr": "besu_blockchain_chain_head_timestamp",
+          "legendFormat": "{{instance}}",
           "refId": "A"
         }
       ],
-      "title": "Average Block Time",
+      "title": "Chain Head Timestamp",
       "type": "stat"
     },
     {
@@ -311,7 +311,7 @@
       "pluginVersion": "10.4.2",
       "targets": [
         {
-          "expr": "besu_blockchain_chain_height",
+          "expr": "ethereum_blockchain_height",
           "legendFormat": "{{instance}}",
           "refId": "A"
         }
@@ -397,7 +397,7 @@
       "pluginVersion": "10.4.2",
       "targets": [
         {
-          "expr": "besu_network_peers_connected",
+          "expr": "besu_peers_connected_total",
           "legendFormat": "{{instance}}",
           "refId": "A"
         }
@@ -483,7 +483,7 @@
       "pluginVersion": "10.4.2",
       "targets": [
         {
-          "expr": "besu_transaction_pool_pending_transactions",
+          "expr": "besu_transaction_pool_number_of_transactions",
           "legendFormat": "{{instance}}",
           "refId": "A"
         }
@@ -569,7 +569,7 @@
       "pluginVersion": "10.4.2",
       "targets": [
         {
-          "expr": "jvm_memory_used_bytes{area=\"heap\"}",
+          "expr": "jvm_memory_bytes_used{area=\"heap\"}",
           "legendFormat": "{{instance}} - Heap",
           "refId": "A"
         }

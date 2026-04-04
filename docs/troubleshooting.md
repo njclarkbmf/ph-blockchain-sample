@@ -8,6 +8,7 @@
 - [Issue 4: verify_deployment.js fails — getChainId is not a function](#issue-4-verify_deploymentjs-fails--getchainid-is-not-a-function)
 - [Issue 5: Init containers shown as running/stopped in Docker Desktop](#issue-5-init-containers-shown-as-runningstopped-in-docker-desktop)
 - [Issue 6: setup_qbft.sh generates mismatched keypairs — KNOWN ISSUE](#issue-6-setup_qbftsh-generates-mismatched-keypairs--known-issue-not-yet-fixed)
+- [Issue 7: Grafana dashboard panels show "No data"](#issue-7-grafana-dashboard-panels-show-no-data)
 
 ## Common Errors and Solutions
 
@@ -361,6 +362,59 @@ docker exec ph-validator1 /opt/besu/bin/besu \
 # Update genesis extraData and alloc with the new address
 # Then: docker compose down -v && docker compose up -d
 ```
+
+---
+
+### Issue 7: Grafana dashboard panels show "No data"
+
+**Symptom:**
+Grafana loads but all dashboard panels show "No data" despite
+Prometheus successfully scraping all Besu nodes.
+
+**Cause 1 — Datasource UID mismatch:**
+Grafana auto-generates a random UID (e.g. `PBFA97CFB590B2093`) for the
+Prometheus datasource if none is explicitly set in the provisioning
+config. The dashboard JSON references uid `prometheus` — when the UID
+doesn't match, all panel queries silently fail.
+
+**Fix:**
+Add explicit uid to `datasources.yml`:
+```yaml
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    url: http://prometheus:9090
+```
+
+**Cause 2 — Incorrect Besu metric names:**
+Besu 24.6.0 metric names differ from commonly documented names. Using
+the wrong names returns empty results from Prometheus.
+
+**Fix:**
+Verify available metric names against the live Prometheus instance:
+```bash
+curl -s http://localhost:9090/api/v1/label/__name__/values | \
+  python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+for m in sorted(data['data']):
+    print(m)
+"
+```
+
+Correct metric names for Besu 24.6.0:
+```
+ethereum_blockchain_height
+besu_peers_connected_total
+besu_transaction_pool_number_of_transactions
+besu_blockchain_chain_head_timestamp
+jvm_memory_bytes_used
+```
+
+> ⚠️ Re-verify these metric names against the above command if upgrading
+> Besu to a new major version — metric names are not guaranteed stable
+> across major releases.
 
 ## Network Reset
 

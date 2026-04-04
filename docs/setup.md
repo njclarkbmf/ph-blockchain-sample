@@ -104,11 +104,23 @@ npm run verify:besuLocal
 
 ### 7. Access Monitoring
 
-```bash
-# Grafana Dashboard
-open http://localhost:8080
+Grafana is available at **http://localhost:8080** (admin/admin).
+Dashboards are provisioned automatically at container startup — no
+manual Grafana UI steps are required.
 
-# Prometheus Metrics
+The **Besu QBFT Overview** dashboard is available immediately after
+`docker compose up` and includes:
+- Chain height over time
+- Peer count per node
+- Transaction pool depth
+- Chain head timestamp
+- JVM memory usage per node
+
+> If panels show "No data", see [docs/troubleshooting.md](docs/troubleshooting.md)
+> Issue 7.
+
+```bash
+# Prometheus Metrics (raw)
 open http://localhost:9090
 ```
 
