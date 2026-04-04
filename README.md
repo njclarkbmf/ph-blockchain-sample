@@ -50,9 +50,12 @@ For detailed component descriptions, data flows, and security architecture see
 
 | Software | Version | Install |
 |----------|---------|---------|
-| Docker | 24.0+ | [docker.com](https://docker.com) |
+| Docker (with Compose V2) | 24.0+ | [docker.com](https://docker.com) |
 | Node.js | 18.x+ | [nodejs.org](https://nodejs.org) |
+| Python | 3.x | python3 |
 | Git | 2.40+ | [git-scm.com](https://git-scm.com) |
+
+> Docker Compose V2 is included in Docker Desktop 4.31+. Verify with `docker compose version`.
 
 ### Installation
 
@@ -67,13 +70,12 @@ npm install
 # Copy environment configuration
 cp .env.example .env
 
-# Generate node keys and update genesis
-chmod +x scripts/network/setup_qbft.sh
-./scripts/network/setup_qbft.sh --nodes 3 --observers 1
-
 # Start blockchain network (requires Docker)
 cd docker
 docker compose up -d
+
+# Wait ~10 seconds for block production to start, then verify:
+docker compose logs validator1 | grep -i "Produced\|Imported"
 
 # Deploy smart contracts
 cd ..
@@ -83,14 +85,45 @@ npm run deploy:besuLocal
 npm run verify:besuLocal
 ```
 
+> ⚠️ **Known Issue — setup_qbft.sh keypair generation**
+>
+> `setup_qbft.sh` currently generates mismatched keypairs. Running it to
+> regenerate node keys will break QBFT consensus. Do not run this script
+> until the fix is applied. See [docs/troubleshooting.md](docs/troubleshooting.md)
+> Issue 6 for the correct key generation procedure.
+
+### Network Topology
+
+| Container      | Role          | Image              | Ports              |
+|----------------|---------------|--------------------|--------------------|
+| ph-bootnode    | Discovery     | hyperledger/besu   | internal           |
+| ph-validator1  | Validator/RPC | hyperledger/besu   | 8545 RPC, 8546 WS  |
+| ph-validator2  | Validator     | hyperledger/besu   | internal           |
+| ph-validator3  | Validator     | hyperledger/besu   | internal           |
+| ph-observer1   | Observer      | hyperledger/besu   | internal           |
+| ph-prometheus  | Metrics       | prom/prometheus    | 9090               |
+| ph-grafana     | Dashboard     | grafana/grafana    | 8080               |
+| ph-*-init      | Setup (exits) | alpine:3.19        | none               |
+
+> **Note on init containers:** `ph-*-init` containers appear as stopped/exited
+> in Docker Desktop — this is correct and expected behavior. They run once to
+> set file ownership on Besu data volumes, then exit with code 0.
+
 ### Access Points
 
 | Service | URL | Credentials |
 |---------|-----|-------------|
 | JSON-RPC | http://localhost:8545 | - |
 | WebSocket | ws://localhost:8546 | - |
-| Grafana | http://localhost:8080 | admin / ChangeMe123! |
+| Grafana | http://localhost:8080 | admin / admin |
 | Prometheus | http://localhost:9090 | - |
+
+### Deployed Addresses
+
+Contract addresses are written to `deployed-addresses.json` after each
+`npm run deploy:besuLocal` run. **Refer to that file, not this README,
+for current addresses.** See [deployed-addresses.example.json](deployed-addresses.example.json)
+for the expected file structure.
 
 ## 📁 Project Structure
 

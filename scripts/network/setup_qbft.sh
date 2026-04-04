@@ -73,24 +73,30 @@ done
 # =============================================================================
 # Generate secp256k1 keypair for a node
 # Outputs: private_key_hex public_key_hex (uncompressed, 64 bytes = 128 hex chars)
+# FIX: Derives public key FROM the private key instead of generating independently.
 # =============================================================================
 generate_keypair() {
     local node_name="$1"
-    # Generate private key (32 bytes)
+    local tmp_priv
+    tmp_priv=$(mktemp)
+
+    # Generate private key in PEM format
+    openssl ecparam -name secp256k1 -genkey -noout 2>/dev/null > "$tmp_priv"
+
+    # Extract raw private key (32 bytes = 64 hex chars)
     local priv_key
-    priv_key=$(openssl ecparam -genkey -name secp256k1 -noout 2>/dev/null | \
-               openssl ec -text -noout 2>/dev/null | \
+    priv_key=$(openssl ec -in "$tmp_priv" -text -noout 2>/dev/null | \
                grep -A 100 "priv:" | grep -v "priv:" | grep -v "pub:" | \
                tr -d '[:space:]:' | head -c 64)
 
-    # Generate public key (uncompressed, 64 bytes without 04 prefix)
+    # Derive public key FROM the same private key (uncompressed, without 04 prefix)
     local pub_key
-    pub_key=$(openssl ec -in <(openssl ecparam -genkey -name secp256k1 -noout 2>/dev/null) \
-              -pubout -conv_form uncompressed 2>/dev/null | \
+    pub_key=$(openssl ec -in "$tmp_priv" -pubout -conv_form uncompressed 2>/dev/null | \
               openssl ec -pubin -text -noout 2>/dev/null | \
               grep -A 100 "pub:" | grep -v "pub:" | grep -v "ASN1" | \
               tr -d '[:space:]:' | tail -c 128)
 
+    rm -f "$tmp_priv"
     echo "${priv_key}:${pub_key}"
 }
 
@@ -166,36 +172,63 @@ main() {
         log_success "  ${name} key generated"
     done
 
-    # Build QBFT extraData with validator addresses
-    # Format: 32 bytes of zeros + 20 bytes * N validator addresses
+    # Build QBFT extraData with validator addresses using proper RLP encoding
+    # RLP structure: [vanity(32 bytes), [validator_addresses...], seals([]), vote(b""), round([])]
     log_info ""
     log_info "Building QBFT extraData with ${#VALIDATOR_ADDRESSES[@]} validator addresses..."
 
-    local extra_data="0x"
-    # 32 bytes of zeros (vanity data)
-    extra_data+="0000000000000000000000000000000000000000000000000000000000000000"
-    # Append validator addresses (20 bytes each, no 0x prefix)
-    for addr in "${VALIDATOR_ADDRESSES[@]}"; do
-        extra_data+="${addr#0x}"
-    done
-    # Pad to 65 bytes minimum (130 hex chars) if needed
-    local current_len=${#extra_data}
-    if [ $current_len -lt 130 ]; then
-        local padding=$((130 - current_len))
-        extra_data+=$(printf '%0*d' $padding 0)
-    fi
+    # Use python3 for RLP encoding
+    local extra_data
+    extra_data=$(python3 -c "
+import hashlib, json
+
+def rlp_encode(data):
+    if isinstance(data, bytes):
+        if len(data) == 1 and data[0] < 0x80:
+            return data
+        elif len(data) < 56:
+            return bytes([0x80 + len(data)]) + data
+        else:
+            length_bytes = len(data).to_bytes((len(data).bit_length() + 7) // 8, 'big')
+            return bytes([0xb7 + len(length_bytes)]) + length_bytes + data
+    elif isinstance(data, list):
+        encoded_items = b''.join(rlp_encode(item) for item in data)
+        if len(encoded_items) < 56:
+            return bytes([0xc0 + len(encoded_items)]) + encoded_items
+        else:
+            length_bytes = len(encoded_items).to_bytes((len(encoded_items).bit_length() + 7) // 8, 'big')
+            return bytes([0xf7 + len(length_bytes)]) + length_bytes + encoded_items
+
+validator_addrs = [bytes.fromhex(addr[2:]) for addr in '''${VALIDATOR_ADDRESSES[@]}'''.split()]
+vanity = b'\x00' * 32
+extra_data = rlp_encode([vanity, validator_addrs, [], b'', []])
+print('0x' + extra_data.hex())
+" 2>/dev/null)
 
     log_success "  extraData: ${extra_data:0:66}..."
 
-    # Update genesis file with extraData
+    # Update genesis file with extraData and pre-funded alloc
     if [ -f "$CONFIG_DIR/genesis_qbft.json" ]; then
-        log_info "Updating genesis_qbft.json with validator addresses..."
+        log_info "Updating genesis_qbft.json with validator addresses and alloc..."
+        # Build alloc JSON snippet for validators + deployer
+        local alloc_snippet
+        alloc_snippet=$(python3 -c "
+import json
+alloc = {}
+for addr in '''${VALIDATOR_ADDRESSES[@]}'''.split():
+    alloc[addr] = {'balance': '0xad78ebc5ac6200000000'}
+# Pre-fund deployer address from Hardhat default config
+alloc['0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf'] = {'balance': '0xad78ebc5ac6200000000'}
+print(json.dumps(alloc))
+" 2>/dev/null)
+
         # Use python for reliable JSON manipulation
         python3 -c "
 import json, sys
 with open('$CONFIG_DIR/genesis_qbft.json', 'r') as f:
     genesis = json.load(f)
 genesis['extraData'] = '${extra_data}'
+genesis['alloc'] = json.loads('${alloc_snippet}')
 # Remove contract mode since we're using static validators
 if 'validatorSelectionMode' in genesis.get('config', {}).get('qbft', {}):
     del genesis['config']['qbft']['validatorSelectionMode']
@@ -205,7 +238,7 @@ with open('$CONFIG_DIR/genesis_qbft.json', 'w') as f:
     json.dump(genesis, f, indent=2)
 " 2>/dev/null || {
             log_warning "python3 not available, writing extraData manually with sed"
-            sed -i "s|\"extraData\": \"0x0000.*\"|\"extraData\": \"${extra_data}\"|" \
+            sed -i "s|\"extraData\": \"0x.*\"|\"extraData\": \"${extra_data}\"|" \
                 "$CONFIG_DIR/genesis_qbft.json"
         }
         log_success "  genesis_qbft.json updated"

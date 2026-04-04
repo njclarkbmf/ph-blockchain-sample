@@ -1,5 +1,14 @@
 # Setup Guide
 
+## Network Architecture
+
+- **Consensus**: QBFT (Quorum Byzantine Fault Tolerance)
+- **Validator quorum**: 3-of-3 required for block production
+- **Chain ID**: 1981
+- **Block period**: 5 seconds
+- **Epoch length**: 30,000 blocks
+- **Nodes**: 1 bootnode (discovery), 3 validators, 1 observer (read-only)
+
 ## Prerequisites
 
 ### System Requirements
@@ -59,22 +68,7 @@ cp .env.example .env
 # See Environment Configuration section below
 ```
 
-### 4. Generate Network Configuration
-
-```bash
-# Make script executable
-chmod +x scripts/network/setup_qbft.sh
-
-# Generate QBFT network configuration
-./scripts/network/setup_qbft.sh \
-  --nodes 3 \
-  --observers 1 \
-  --chain-id 1981 \
-  --block-time 5 \
-  --data-dir ./network-setup
-```
-
-### 5. Start Docker Network
+### 4. Start Docker Network
 
 ```bash
 # Start all services
@@ -88,7 +82,14 @@ docker compose ps
 docker compose logs -f validator1
 ```
 
-### 6. Deploy Smart Contracts
+> ⚠️ **Known Issue — setup_qbft.sh keypair generation**
+>
+> `setup_qbft.sh` currently generates mismatched keypairs. Running it to
+> regenerate node keys will break QBFT consensus. Do not run this script
+> until the fix is applied. See [docs/troubleshooting.md](docs/troubleshooting.md)
+> Issue 6 for the correct key generation procedure.
+
+### 5. Deploy Smart Contracts
 
 ```bash
 # Return to project root
@@ -355,6 +356,61 @@ docker compose up -d
 # Redeploy contracts
 npm run deploy:besuLocal
 ```
+
+## Init Containers
+
+The `ph-*-init` containers (using `alpine:3.19`) run once at startup to set
+correct file ownership on Besu data volumes, then exit with code 0. Docker
+Desktop shows them as stopped with a play button — this is **correct and
+expected**. Do not restart them manually.
+
+## Key Files
+
+Node private keys must exist in `config/besu/keys/` before starting the
+network. These files are gitignored and must be generated or restored before
+first use. See ⚠️ Known Issue below regarding `setup_qbft.sh` before
+regenerating keys.
+
+## Genesis Alloc Requirement
+
+In a QBFT permissioned network there are no mining rewards. All accounts that
+need ETH (validators for internal operations, deployer for contract deployment)
+must be pre-funded in the genesis `alloc` section. The alloc is set once at
+genesis and cannot be changed without wiping the chain. Current pre-funded
+addresses and amounts are defined in `config/besu/genesis_qbft.json`.
+
+## How to Wipe and Restart Cleanly
+
+A full wipe is required after any genesis change:
+
+```bash
+cd docker
+docker compose down -v     # -v removes volumes = wipes all chain state
+docker compose up -d
+```
+
+> ⚠️ This destroys all chain state including deployed contracts.
+> Re-run `npm run deploy:besuLocal` after restarting.
+
+## Verifying Block Production Before Deploying
+
+Before running deploy scripts, confirm blocks are being produced:
+
+```bash
+python3 -c "
+import urllib.request, json, time
+for _ in range(3):
+    data = json.dumps({'jsonrpc':'2.0','method':'eth_blockNumber',
+           'params':[],'id':1}).encode()
+    req = urllib.request.Request('http://localhost:8545', data=data,
+          headers={'Content-Type':'application/json'})
+    print('Block:', int(json.loads(urllib.request.urlopen(req).read())
+          ['result'], 16))
+    time.sleep(6)
+"
+```
+
+Block number must be incrementing before running deploy scripts.
 
 ## Next Steps
 

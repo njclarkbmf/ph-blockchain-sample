@@ -1,5 +1,14 @@
 # Troubleshooting Guide
 
+## Table of Contents
+
+- [Issue 1: No blocks produced — validators stuck](#issue-1-no-blocks-produced--validators-stuck-in-unable-to-find-sync-target)
+- [Issue 2: Deployer has no balance / all accounts show 0 ETH](#issue-2-deployer-has-no-balance--all-accounts-show-0-eth)
+- [Issue 3: Healthchecks failing — curl or wget not found](#issue-3-healthchecks-failing--curl-or-wget-not-found-in-besu-container)
+- [Issue 4: verify_deployment.js fails — getChainId is not a function](#issue-4-verify_deploymentjs-fails--getchainid-is-not-a-function)
+- [Issue 5: Init containers shown as running/stopped in Docker Desktop](#issue-5-init-containers-shown-as-runningstopped-in-docker-desktop)
+- [Issue 6: setup_qbft.sh generates mismatched keypairs — KNOWN ISSUE](#issue-6-setup_qbftsh-generates-mismatched-keypairs--known-issue-not-yet-fixed)
+
 ## Common Errors and Solutions
 
 ### Hardhat Errors
@@ -203,7 +212,157 @@ expect(parsed?.args?.action?.hash).to.equal(
 );
 ```
 
-### Network Reset
+## Besu QBFT Network Issues
+
+### Issue 1: No blocks produced — validators stuck in "Unable to find sync target"
+
+**Symptom:**
+```
+docker compose logs validator1 shows:
+"FullSyncTargetManager | Unable to find sync target. Currently checking 3 peers"
+```
+
+**Cause:**
+The validator address derived from the node's private key does not match
+any address in genesis extraData. Besu does not recognise itself as a
+validator and falls back to sync mode. This is caused by mismatched keypairs
+(see setup_qbft.sh Known Issue).
+
+**Diagnosis:**
+```bash
+# Get the actual address Besu derives from each validator key
+docker exec ph-validator1 /opt/besu/bin/besu \
+  public-key export-address \
+  --node-private-key-file=/etc/besu/keys/validator1.key
+# Repeat for validator2 and validator3
+# Compare output against addresses in genesis extraData
+```
+
+**Fix:**
+1. Get real addresses from diagnosis step above
+2. Re-encode extraData RLP with correct addresses (see genesis_qbft.json notes)
+3. Update alloc section with same addresses
+4. `docker compose down -v && docker compose up -d`
+
+---
+
+### Issue 2: Deployer has no balance / all accounts show 0 ETH
+
+**Symptom:**
+```
+npm run deploy:besuLocal shows: "Error: Deployer has no balance"
+jq '.alloc' config/besu/genesis_qbft.json returns {}
+```
+
+**Cause:**
+QBFT permissioned networks have no mining rewards. If genesis alloc is
+empty, all accounts start with 0 ETH and no transactions can be submitted.
+
+**Fix:**
+Add alloc entries to genesis_qbft.json for all validator addresses and
+the deployer address before first docker compose up. Genesis is immutable
+once the chain starts — requires `docker compose down -v` to take effect.
+
+---
+
+### Issue 3: Healthchecks failing — curl or wget not found in Besu container
+
+**Symptom:**
+Docker marks Besu containers as unhealthy immediately
+
+**Cause:**
+Besu uses a distroless Docker image with no shell utilities available.
+
+**Fix:**
+Use bash /dev/tcp for healthchecks in docker-compose.yml:
+```yaml
+healthcheck:
+  test: ["CMD-SHELL", "bash -c '(echo -e \"GET / HTTP/1.0\\r\\n\\r\\n\" > /dev/tcp/localhost/8545) 2>/dev/null && exit 0 || exit 1'"]
+  interval: 15s
+  timeout: 5s
+  retries: 5
+  start_period: 120s
+```
+
+---
+
+### Issue 4: verify_deployment.js fails — getChainId is not a function
+
+**Symptom:**
+```
+npm run verify:besuLocal shows:
+"Network connectivity check failed: hre.ethers.provider.getChainId is not a function"
+```
+
+**Cause:**
+Script was written for ethers v5. Project uses ethers v6.
+
+**Fix:**
+```
+v5: await provider.getChainId()
+v6: (await provider.getNetwork()).chainId
+```
+
+Also check for other v5 patterns in the same file:
+```
+v5: ethers.utils.formatEther(x) → v6: ethers.formatEther(x)
+v5: balance.gt(0)               → v6: balance > 0n
+```
+
+---
+
+### Issue 5: Init containers shown as running/stopped in Docker Desktop
+
+**Symptom:**
+ph-bootnode-init, ph-validator1-init (etc.) appear in Docker Desktop
+with a play button and 0B/0B memory usage
+
+**Cause:**
+Docker Desktop shows all containers including exited ones. These
+alpine:3.19 containers run once to set correct file permissions on
+Besu data volumes then exit with code 0.
+
+**This is EXPECTED BEHAVIOUR. Do not restart them.**
+
+---
+
+### Issue 6: ⚠️ setup_qbft.sh generates mismatched keypairs — KNOWN ISSUE, NOT YET FIXED
+
+**Symptom:**
+After running setup_qbft.sh to regenerate keys, validators fail to
+produce blocks (see Issue 1).
+
+**Cause:**
+The script calls `openssl ecparam -genkey` twice — once for the private
+key file and once separately for the public key file. These are two
+completely independent keypairs. The `.key.pub` file does not correspond
+to the `.key` file.
+
+**Impact:**
+**DO NOT** run setup_qbft.sh to regenerate keys until this is fixed.
+Use existing keys in `config/besu/keys/`.
+If keys are lost, manually regenerate using the correct method below.
+
+**Correct key generation (workaround until script is fixed):**
+```bash
+# Generate private key
+openssl ecparam -name secp256k1 -genkey -noout | \
+  openssl ec -no_public > config/besu/keys/validator1.key
+
+# Derive public key FROM the same private key
+openssl ec -in config/besu/keys/validator1.key -pubout \
+  > config/besu/keys/validator1.key.pub
+
+# Get the Ethereum address Besu will derive from this key
+docker exec ph-validator1 /opt/besu/bin/besu \
+  public-key export-address \
+  --node-private-key-file=/etc/besu/keys/validator1.key
+
+# Update genesis extraData and alloc with the new address
+# Then: docker compose down -v && docker compose up -d
+```
+
+## Network Reset
 
 If everything is broken, try a full reset:
 
@@ -213,19 +372,10 @@ cd docker && docker compose down -v
 
 # Remove generated files
 cd ..
-rm -rf network-setup/
 rm -f deployed-addresses.json
 
 # Clean Hardhat artifacts
 npx hardhat clean
-
-# Reinstall dependencies (if needed)
-rm -rf node_modules
-npm install
-
-# Regenerate network config
-chmod +x scripts/network/setup_qbft.sh
-./scripts/network/setup_qbft.sh --nodes 3 --observers 1
 
 # Restart
 cd docker && docker compose up -d

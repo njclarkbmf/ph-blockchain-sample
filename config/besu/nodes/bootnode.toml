@@ -1,67 +1,23 @@
-# =============================================================================
-# Bootnode Configuration - Network Discovery
-# =============================================================================
-# 
-# Bootnode for P2P peer discovery.
-# This node helps other nodes find and connect to the network.
-# Does not participate in consensus or serve RPC requests.
-# =============================================================================
+# Bootnode Configuration - Network Discovery Only
+# No RPC, no consensus participation; P2P discovery only.
 
-node-private-key-file="/etc/besu/keys/bootnode.key"
-
-# Network Configuration
-p2p-enabled=true
-p2p-port=30303
+# Network
 p2p-host="0.0.0.0"
-
-# Bootnode doesn't need bootnodes itself (it IS the bootnode)
-bootnodes=[]
-
-max-peers=50
-
-# RPC Configuration - Bootnodes typically don't serve RPC
-rpc-http-enabled=false
-rpc-ws-enabled=false
+p2p-port=30303
+max-peers=25
 
 # Metrics
 metrics-enabled=true
 metrics-host="0.0.0.0"
 metrics-port=9545
-metrics-category="JVM,BESU,NETWORK"
+metrics-categories=["NETWORK", "PEERS", "JVM"]
 
 # Logging
 logging="INFO"
 
-# Data
-data-path="/var/lib/besu/data"
-
-# Genesis
-genesis-file="/etc/besu/genesis_qbft.json"
-
-# Network
-network-id=1981
-
-# Consensus - Bootnode doesn't mine
-min-gas-price=0
-
-# Transaction Pool - Bootnode doesn't process transactions
-tx-pool-max-size=0
-
-# Security
-p2p-tls-enabled=false
-
-# Permissioning
-permissions-nodes-config-file-enabled=true
-permissions-nodes-config-file="/etc/besu/permissions_config.toml"
-
-# Host Allowlist
+# Node permissions
 host-allowlist=["*"]
 
-# Sync - Bootnode doesn't need full sync
-sync-mode="NONE"
-
-# DNS Configuration (optional, for large networks)
-# dns-enabled=true
-# dns-update-enabled=true
-# dns-interface="eth0"
-# dns-host="bootnode.ph-gov-blockchain.gov.ph"
+# Data
+data-path="/var/lib/besu/data"
+node-private-key-file="/etc/besu/keys/bootnode.key"

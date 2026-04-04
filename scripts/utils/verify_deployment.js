@@ -259,12 +259,12 @@ async function checkNetworkConnectivity() {
     try {
         const blockNumber = await hre.ethers.provider.getBlockNumber();
         logSuccess(`Connected to block ${blockNumber}`);
-        
-        const chainId = await hre.ethers.provider.getChainId();
-        logSuccess(`Chain ID: ${chainId}`);
-        
-        const gasPrice = await hre.ethers.provider.getGasPrice();
-        logInfo(`Gas price: ${hre.ethers.formatUnits(gasPrice, "gwei")} gwei`);
+
+        const network = await hre.ethers.provider.getNetwork();
+        logSuccess(`Chain ID: ${network.chainId}`);
+
+        const feeData = await hre.ethers.provider.getFeeData();
+        logInfo(`Gas price: ${hre.ethers.formatUnits(feeData.gasPrice, "gwei")} gwei`);
         
         return true;
     } catch (error) {

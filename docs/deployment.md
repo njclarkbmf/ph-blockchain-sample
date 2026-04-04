@@ -1,42 +1,12 @@
 # Deployment Guide
 
-## Overview
+## Prerequisites
 
-This guide covers deployment procedures for the Philippine Government Federated Blockchain across different environments.
-
-## Deployment Environments
-
-| Environment | Purpose | Network | Validators |
-|-------------|---------|---------|------------|
-| Development | Local testing | hardhat | N/A |
-| POC | Agency demos | besuLocal | 3 |
-| Staging | Pre-production | besuStaging | 4 |
-| Production | Live operations | besuProduction | 5+ |
-
-## Pre-Deployment Checklist
-
-### Security
-
-- [ ] Private keys stored in secure vault (NOT in .env for production)
-- [ ] TLS certificates generated and validated
-- [ ] Firewall rules configured
-- [ ] API authentication enabled
-- [ ] Host allowlist configured
-
-### Infrastructure
-
-- [ ] Server resources meet requirements
-- [ ] Network connectivity verified
-- [ ] DNS records configured
-- [ ] Load balancer configured (production)
-- [ ] Backup systems ready
-
-### Compliance
-
-- [ ] Data residency verified (Philippines)
-- [ ] Audit logging enabled
-- [ ] Retention policies configured
-- [ ] Access control documented
+- Network must be running and producing blocks (verify with block check in
+  [Setup Guide](setup.md))
+- Node.js 18+ and `npm install` completed
+- `config/besu/keys/` populated with valid keypairs
+- Deployer account pre-funded in genesis `alloc` (see [Setup Guide](setup.md))
 
 ## POC Deployment
 
@@ -48,29 +18,13 @@ npm install
 
 # Copy environment
 cp .env.example .env
-
-# Configure for POC
-cat > .env << EOF
-BESU_RPC_URL=http://localhost:8545
-CHAIN_ID=1981
-DEPLOYER_PRIVATE_KEY=0x$(openssl rand -hex 32)
-GRAFANA_ADMIN_PASSWORD=$(openssl rand -base64 12)
-EOF
 ```
 
-### Step 2: Generate Network
+> ⚠️ Do NOT generate new keys with `setup_qbft.sh` — see the
+> [Setup Guide](setup.md) known issue. Use existing keys in
+> `config/besu/keys/`.
 
-```bash
-chmod +x scripts/network/setup_qbft.sh
-
-./scripts/network/setup_qbft.sh \
-  --nodes 3 \
-  --observers 1 \
-  --chain-id 1981 \
-  --block-time 5
-```
-
-### Step 3: Start Network
+### Step 2: Start Network
 
 ```bash
 cd docker
@@ -85,19 +39,61 @@ curl http://localhost:8545 -X POST \
   -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}'
 ```
 
-### Step 4: Deploy Contracts
+### Step 3: Deploy Contracts
 
 ```bash
 cd ..
 
 # Deploy to POC network
-npx hardhat run scripts/deploy/01_deploy_core.js --network besuLocal
+npm run deploy:besuLocal
 
 # Verify deployment
-npx hardhat run scripts/utils/verify_deployment.js --network besuLocal
+npm run verify:besuLocal
 ```
 
-### Step 5: Register Agencies
+### Deployed Addresses
+
+After deployment, addresses are saved to `deployed-addresses.json` in the
+project root. This file is gitignored — it is environment-specific.
+See `deployed-addresses.example.json` for the expected structure.
+
+```bash
+cat deployed-addresses.json
+```
+
+Addresses are deterministic per deployer address and nonce. On a fresh chain
+(`docker compose down -v`) with the default hardhat besuLocal key, addresses
+will be consistent. They will differ if the chain is not fully wiped between
+deployments or if the deploy script order changes.
+
+### Post-Deployment Next Steps
+
+1. **Register government agencies:**
+   ```
+   AccessManager.registerAgency(agencyId, agencyAddress, metadataHash)
+   ```
+2. **Grant roles to agency addresses:**
+   ```
+   AccessManager.grantRole(AGENCY_ROLE, agencyAddress)
+   AccessManager.grantRole(AUDITOR_ROLE, complianceAddress)
+   ```
+3. **Begin document registration:**
+   ```
+   DocumentRegistry.registerDocument(...)
+   ```
+4. **Monitor the network:**
+   - Grafana: http://localhost:8080 (admin/admin)
+   - Audit events: query AuditLog contract
+
+### Ethers Version Note
+
+This project uses ethers v6. Scripts must use the v6 API:
+
+| v5 (broken) | v6 (correct) |
+|---|---|
+| `await provider.getChainId()` | `(await provider.getNetwork()).chainId` |
+| `ethers.utils.formatEther(x)` | `ethers.formatEther(x)` |
+| `balance.gt(0)` | `balance > 0n` |
 
 ```javascript
 // scripts/register-agencies.js

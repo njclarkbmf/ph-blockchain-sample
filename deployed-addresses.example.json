@@ -1,0 +1,12 @@
+{
+  "besuLocal": {
+    "AccessManager": "<address after npm run deploy:besuLocal>",
+    "DocumentRegistry": "<address after npm run deploy:besuLocal>",
+    "AuditLog": "<address after npm run deploy:besuLocal>",
+    "network": {
+      "chainId": 1981,
+      "deployer": "<hardhat besuLocal account address>",
+      "deployedAt": "<ISO timestamp>"
+    }
+  }
+}
